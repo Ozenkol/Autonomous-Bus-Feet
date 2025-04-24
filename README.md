@@ -1,225 +1,221 @@
-# Autonomous Fleet Management and Optimization System
-
-## 1. Abstract
-
-This system integrates autonomous buses into an existing public transportation infrastructure to dynamically optimize vehicle allocation, routes, and schedules. It adapts to real-time passenger demand, traffic conditions, and vehicle availability—significantly reducing operational inefficiencies and enhancing passenger experience.
-
-## 2. Requirements
-
-### Functional
-- Real-time dynamic scheduling and vehicle routing.
-- Autonomous and traditional vehicle integration.
-- Public-facing interface for route tracking.
-- Admin control interface with override ability.
-
-### Non-Functional
-- **Safety-critical**: Prevent collisions, system faults.
-- **Availability**: ≥ 99.99% uptime.
-- **Latency**: Sub-100ms for vehicle control.
-- **Scalability**: Up to 1M vehicle nodes.
-- **Consistency**: Strong sync between services.
-
-## 3. Modeling
-
-### External Systems
-- **Sergek** – Video analytics for vehicle speed/ID.
-- **Third-party APIs** – Traffic, weather.
-
-### Users
-- **Commuters** – Use app for live bus info.
-- **Transit Operators** – Dashboard for monitoring & overrides.
-- **Autonomous Vehicles** – Send location data, receive control commands.
-
-### Environment
-- Population: ~2M, mostly in suburbs.
-- Terrain: Mix of flat and minor mountainous areas.
-- Transport: 1M vehicles, 10-minute average public bus interval.
-
----
-
-## 4. Hardware Components
-
-### Network Infrastructure
-- **5G Edge Routers** – For real-time vehicle data transmission.
-- **IoT Gateways** – Data pipe between suburban buses and HQ.
-- **Access Points** – Installed at transport hubs.
-
-### Servers
-- **Edge Datacenter Cluster**
-  - 5 x 64-core, 512GB RAM nodes
-  - 20TB SSD for high-speed streaming data
-- **Cloud Deployment (AWS/Azure)**
-  - Autoscaling Kubernetes, multi-region
-  - GPU-backed compute for ML inference
-
----
-
-## 5. Architecture
-
-> **See these visual references to draw C4 diagrams:**
-- [Context & Container Diagram](https://chat.openai.com/share/3a11d117-b0b4-44a3-a47c-77f9d4573801)
-- [Stream + Edge View](https://chat.openai.com/share/2b7312aa-9fbd-42fc-86cf-3b58e6a42725)
-- [Cloud Service Layout](https://chat.openai.com/share/479ec0e7-674e-41d1-b52c-07a0ad3dd89c)
-
-### C4 Model Summary
-
-#### Level 1 – Context
-- Commuters ↔ Mobile/Web UI
-- Operators ↔ Admin Dashboard
-- Vehicles ↔ Telemetry & Control API
-- Sergek ↔ Sensor Event Ingestor
-
-#### Level 2 – Container
-- `Mobile/Web App` – Frontend for users
-- `API Gateway` – Access point to backend services
-- `Scheduler Service` – Adjusts fleet based on demand
-- `Vehicle Command Service` – Sends low-latency instructions
-- `Telemetry Processor` – Processes Kafka stream
-- `Frontend Dashboard` – Control panel for operators
-- `Data Platform`: PostgreSQL + Kafka + Redis + S3
-
-#### Level 3 – Component (Example: Scheduler Service)
-- `Demand Forecaster` – ML-based prediction
-- `Route Optimizer` – Real-time dynamic rerouting
-- `Vehicle Allocator` – Picks best-fit vehicle
-- `Safety Validator` – Ensures system constraints
-- `Incident Monitor` – Logs anomalies and notifies operators
-
----
-
-## 6. Technology Stack
-
-### Backend
-- **Go / Rust** – High-performance services
-- **Python** – ML and predictive modules
-- **Node.js** – API layer
-
-### Data
-- **PostgreSQL** – Long-term route and metadata
-- **Apache Kafka** – Event stream from sensors and telemetry
-- **Apache Flink** – Real-time stream processor
-- **Redis** – Real-time vehicle cache
-- **Amazon S3 / Azure Blob** – Archive of historical data
-
-### Communication
-- **gRPC** – Low-latency control to autonomous vehicles
-- **MQTT** – Lightweight telemetry protocol
-- **HTTPS/REST** – App and admin service integration
-
-### Infra
-- **Kubernetes** – Service orchestration
-- **Prometheus + Grafana** – Monitoring
-- **ELK Stack** – Logs and auditing
-- **Cloud Provider** – AWS/Azure (multi-region)
-
----
-
 # Data Infrastructure Blueprint for Autonomous Fleet System
 
-## 1. Ingestion Layer
+## 1. System Overview and Scope
 
-**Components:**
-- MQTT Broker (e.g., EMQX, Mosquitto)
-- REST / WebSocket Gateways
-- Kafka Connect
+The Autonomous Fleet System is a distributed software system that dynamically manages electric and self-driving public transit vehicles within a suburban city environment. It helps optimize fleet allocation, route planning, and scheduling based on real-time data such as demand, traffic, and vehicle status. The primary users include commuters, transit operators, and autonomous vehicle nodes.
 
-**Data Sources:**
-- Vehicle Telemetry (speed, location, battery, etc.)
-- Sergek video analytics data (vehicle ID, velocity)
-- Mobile App (user location, booking info)
+**In Scope:**
+- Dynamic scheduling and routing
+- Real-time telemetry ingestion and command dispatch
+- Public-facing apps (passenger tracking)
+- Operator dashboard (monitor & control)
 
-## 2. Stream Processing Layer
+**Out of Scope:**
+- In-vehicle low-level navigation stack
+- Payments and fare collection
 
-**Components:**
-- Apache Kafka (stream buffer)
-- Apache Flink or Kafka Streams (processing)
-- Redis Streams / MQTT Bridge (control signal dispatcher)
+## 2. Functional and Non-Functional Requirements
 
-**Processing Tasks:**
-- Real-time route adaptation
-- Demand heatmap generation
-- Predictive scheduling
+### Functional:
+- Monitor vehicle telemetry and location
+- Adjust vehicle schedule dynamically
+- Send optimized commands to autonomous vehicles
+- Visual dashboards for users and operators
 
-## 3. Operational Data Store
+### Non-Functional:
+- Scalability: handle 1000+ vehicles and millions of events/day
+- Security: end-to-end TLS, encrypted storage
+- Latency: sub-second response for critical services
+- Reliability: 99.99% uptime for control services
 
-**Technologies:**
-- Redis (vehicle state caching)
-- PostgreSQL with PostGIS / CockroachDB (routing decisions)
+## 3. High-Level Architecture
 
-**Use Cases:**
-- Real-time schedule lookups
-- Location-to-vehicle mapping
-
-## 4. Analytical Data Store
-
-**Storage:**
-- Amazon S3 / Azure Data Lake (raw telemetry, logs)
-- ClickHouse or BigQuery (aggregated data)
-
-**ETL & ML:**
-- Apache Airflow (orchestration)
-- MLflow + MinIO (model store and retrieval)
-
-## 5. Metadata & Quality
-
-**Tools:**
-- Confluent Schema Registry (Kafka messages)
-- Apache Atlas / Amundsen (cataloging)
-- Great Expectations (data validation)
-- OpenLineage (data lineage tracking)
-
-## 6. Communication Flow
-
-
-
-## 7. Data Flow
-
-```plaintext
-[Sensors, Sergek, GPS] 
-    ↓ 
-[Kafka Topics] 
-    → [Flink] → [Redis / PostgreSQL]
-    → [Scheduler] → [Route Optimizer]
-    → [Vehicle Command Service] → [Autonomous Vehicles]
-    → [Frontend Services] → [User Apps / Operator Dashboard]
-
+- Components: Web app, Backend APIs, Kafka Stream, Redis, PostgreSQL, ML model runner
+- Services communicate via REST, MQTT, gRPC, and Kafka topics
 
 ```mermaid
-C4Context
-    title Autonomous Fleet System - Context Diagram
+graph TD
+  subgraph Network Devices
+    GW[API Gateway]
+    LB[Load Balancer]
+  end
 
-    Person(customer, "City User", "Uses the public transport system")
-    Person(driver, "Driver", "Operates vehicles (manual or autonomous)")
-    System(transportSystem, "Autonomous Fleet System", "Manages vehicle scheduling, allocation, and fleet optimization")
-    System_Ext(sergek, "Sergek Video Analytics", "Provides vehicle velocity and ID")
-    System_Ext(mobileApp, "Mobile App", "Provides user interface for scheduling and tracking")
-    System_Ext(trafficSystem, "Traffic Control System", "Monitors traffic and provides conditions to fleet management system")
+  subgraph Services
+    WebApp[Web/Mobile Frontend]
+    API[Backend API Service]
+    Scheduler[Scheduler Service]
+    Allocator[Vehicle Allocator]
+    Stream[Flink Stream Processor]
+    CmdService[Vehicle Command Service]
+  end
 
-    Rel(customer, mobileApp, "Uses")
-    Rel(driver, transportSystem, "Interacts with")
-    Rel(transportSystem, sergek, "Uses video data from")
-    Rel(transportSystem, trafficSystem, "Gets traffic data from")
-    Rel(mobileApp, transportSystem, "Requests vehicle availability and tracking")
+  subgraph Databases
+    Redis[Redis Cache]
+    PG[PostgreSQL + PostGIS]
+    Kafka[Kafka Broker]
+    S3[S3 / Datalake]
+  end
+
+  GW --> LB
+  LB --> WebApp
+  WebApp --> API
+  API --> Scheduler
+  API --> Allocator
+  API --> Redis
+  Scheduler --> PG
+  Allocator --> PG
+  Allocator --> Redis
+  CmdService --> Kafka
+  Stream --> Kafka
+  Stream --> PG
+  Stream --> Redis
+  Kafka --> S3
 
 ```
 
+Data Infrastructure
+
+```mermaid
+graph LR
+  Vehicle[Vehicle Telemetry/Sensors]
+  MobileApp[Mobile App Events]
+  Sergek[Sergek Cameras]
+
+  MQTT[MQTT Broker]
+  Gateway[API Gateway]
+  Kafka[Kafka Broker]
+  Flink[Apache Flink Stream Processing]
+  Redis[Redis Cache]
+  PG[PostgreSQL + PostGIS]
+  Airflow[Airflow ETL Jobs]
+  S3[S3 / Data Lake]
+  ClickHouse[ClickHouse / BigQuery]
+  MLflow[MLflow + MinIO]
+
+  Vehicle --> MQTT --> Kafka
+  MobileApp --> Gateway --> Kafka
+  Sergek --> Gateway --> Kafka
+
+  Kafka --> Flink
+  Flink --> Redis
+  Flink --> PG
+  PG --> Airflow --> S3
+  S3 --> ClickHouse
+  S3 --> MLflow
+
+```
+
+## 4. Component Breakdown
+
+| Component            | Responsibilities                                                | Tech Stack               |
+|---------------------|------------------------------------------------------------------|--------------------------|
+| Web & Mobile App     | Display buses, allow route queries                              | Vue.js, REST, HTTPS      |
+| API Gateway          | Secure routing to services, rate-limiting                       | Kong, TLS, JWT OAuth     |
+| Scheduler Service    | Route planning based on traffic, demand                         | Python, PostGIS, Redis   |
+| Vehicle Command Svc  | Issues commands to buses                                        | Go, MQTT, Redis Streams  |
+| Stream Processor     | Real-time data aggregation from sensors                         | Kafka, Flink             |
+| Sergek Adapter       | Ingests video data from external systems                        | Kafka Connect, Webhooks  |
+
+## 5. Data Storage and Database Schema
+
+- **Redis**: Caching for live vehicle state and ETA
+- **PostgreSQL + PostGIS**: Route graphs, schedules, event logs
+- **Kafka**: Event streaming (telemetry, control feedback)
+- **S3/ClickHouse**: Long-term telemetry analytics
+- **Schema**: Vehicles(id, type, location, battery); Routes(id, path, stops, traffic)
+
+## 6. Technology Stack and Justification
+
+| Layer               | Tech                 | Reason                                        |
+|--------------------|----------------------|-----------------------------------------------|
+| Frontend            | Vue.js               | Lightweight and fast user-facing app          |
+| Backend API         | FastAPI / Flask      | Async capabilities, quick dev cycle           |
+| Stream              | Apache Kafka + Flink | Real-time, fault-tolerant streaming           |
+| Database            | PostgreSQL + Redis   | Strong consistency, geospatial queries        |
+| Cloud/Infra         | AWS + Kubernetes     | Scalable, managed, multi-region support       |
+| CI/CD               | GitHub Actions       | Fast deploy pipeline                          |
+| Monitoring          | Prometheus + Grafana | Real-time alerts and metrics dashboard        |
+
+## 7. Scalability, Security, Reliability
+
+### Scalability:
+- Kafka + Flink support distributed stream processing
+- Stateless services behind load balancers
+- Redis & Postgres with sharding or clustering as needed
+
+### Security:
+- HTTPS everywhere (TLS 1.3)
+- OAuth2.0/JWT for user & service auth
+- MQTT with client certs for vehicle comms
+- Secrets stored in Vault or AWS Secrets Manager
+
+### Reliability:
+- Kafka ensures event durability
+- PostgreSQL high-availability clusters
+- Retry queues and circuit breakers for command delivery
+- Cloud-based auto-scaling
+
+## 8. Trade-Offs and Limitations
+
+| Decision                  | Trade-Off                                                       |
+|--------------------------|------------------------------------------------------------------|
+| Real-time edge compute   | Increased complexity but better latency                          |
+| Event streaming          | More infra to manage vs simple REST calls                        |
+| Relational DB over NoSQL | Better data integrity, but harder horizontal scaling             |
+| External traffic ingest  | Relies on 3rd-party data uptime and integrity                    |
+| MQTT for telemetry       | Efficient but limited to small payloads, not great for bulk data |
+
+## 9. C4 Architecture Diagrams (Mermaid.js)
+
+### Context Diagram
+```mermaid
+C4Context
+    title Autonomous Fleet System - Context Diagram
+    Person(cityUser, "City User", "Uses the transport app")
+    Person(operator, "Operator", "Manages fleet")
+    System(system, "Fleet Optimization System", "Optimizes routes and commands autonomous vehicles")
+    System_Ext(sergek, "Sergek Analytics", "City traffic camera system")
+    System_Ext(app, "Mobile App", "UI for passengers")
+    Rel(cityUser, app, "Uses")
+    Rel(operator, system, "Monitors via dashboard")
+    Rel(app, system, "Tracks buses, sends requests")
+    Rel(system, sergek, "Fetches traffic data")
+```
+
+### Container Diagram
 ```mermaid
 C4Container
-    title Autonomous Fleet System - Container Diagram
+    title Fleet Optimization System - Container Diagram
+    Container(webApp, "Web UI", "Vue.js", "Visualizes buses and routes")
+    Container(api, "Backend API", "FastAPI", "Handles route planning and scheduling")
+    Container(db, "Database", "PostgreSQL", "Stores schedules and vehicle data")
+    Container(redis, "Cache", "Redis", "Real-time vehicle state")
+    Container(kafka, "Kafka", "Apache Kafka", "Ingest telemetry data")
+    Container(flink, "Stream Processor", "Apache Flink", "Real-time processing of vehicle feeds")
+    Rel(webApp, api, "REST")
+    Rel(api, db, "SQL")
+    Rel(api, redis, "Cache lookup")
+    Rel(flink, db, "Stores aggregated data")
+    Rel(kafka, flink, "Processes streams")
+```
 
-    Container(webApp, "Web App", "React/Vue", "Allows users to interact with the system for scheduling and monitoring")
-    Container(backendAPI, "Backend API", "Node.js / Flask / Django", "Handles scheduling, vehicle allocation, and interactions")
-    Container(database, "Database", "PostgreSQL / CockroachDB", "Stores vehicle data, schedules, and user information")
-    Container(kafka, "Kafka", "Apache Kafka", "Streams real-time telemetry and control messages")
-    Container(flux, "Stream Processor", "Apache Flink / Spark", "Processes data streams for route prediction and vehicle state management")
-    Container(externalAPI, "External API Gateway", "Kong / NGINX", "Handles external API calls and secures interactions")
-
-    Rel(customer, webApp, "Interacts with")
-    Rel(webApp, backendAPI, "Calls REST API")
-    Rel(backendAPI, database, "Reads/Writes data to")
-    Rel(backendAPI, kafka, "Streams control commands")
-    Rel(kafka, flux, "Streams data for processing")
-    Rel(flux, database, "Updates processed data to")
-    Rel(externalAPI, transportSystem, "Provides external access for third-party services")
-
+### Deployment Diagram
+```mermaid
+C4Deployment
+    title Autonomous Fleet - Deployment
+    Node(cloud, "AWS Cloud") {
+      Container(api, "Fleet API")
+      Container(redis, "Redis Cluster")
+      Container(db, "PostgreSQL HA")
+    }
+    Node(edge, "Vehicle Edge Node") {
+      Container(mqttClient, "MQTT Client")
+    }
+    Node(kafkaZone, "Kafka Stream") {
+      Container(kafka, "Apache Kafka")
+      Container(flink, "Apache Flink")
+    }
+    Rel(mqttClient, kafka, "Telemetry Stream")
+    Rel(kafka, flink, "Stream Pipeline")
+    Rel(flink, db, "Stores Processed Data")
 ```
